@@ -31,7 +31,7 @@ x_pixel = 1920
 # minimal radius is 10 pixels
 radius = 5
 # time check is two seconds
-duration = 2
+duration = 1.5
 
 # Setup three global variables, x, y and timestamp. So we can compare different between
 # those messages

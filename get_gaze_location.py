@@ -2,7 +2,6 @@
 Receive data from Pupil server broadcast for TCP
 test script to see what the stream looks like and for
 debugging
-
 """
 '''
 	Copy right Zhitao Zhang
@@ -10,112 +9,190 @@ debugging
 '''
 import zmq
 import math
+from pyadb import ADB
+from sys import stdin, exit
 
-# Network set up
-port = "5000"
-context = zmq.Context()
-socket = context.socket(zmq.SUB)
-socket.connect("tcp://127.0.0.1:" + port)
-# filter by message by stating string "STRING", '' receives all messages
-socket.setsockopt(zmq.SUBSCRIBE, '')
-# reference surface we are going to track
-surface_name = 'nexus'
-# error message constant
-error_message = 'Error occur in extracing gaze posiiton'
+def main():
 
-# lowest acceptant level
-con_level = 0.65
-# resolution of nexus
-y_pixel = 1200
-x_pixel = 1920
-# minimal radius is 10 pixels
-radius = 5
-# time check is two seconds
-duration = 1.5
+	# reference surface we are going to track
+	surface_name = 'nexus'
+	# error message constant
+	error_message = 'Error occur in extracing gaze locataion'
 
-# Setup three global variables, x, y and timestamp. So we can compare different between
-# those messages
-x = -1.0
-y = -1.0
-timestamp = -1
+	# lowest acceptant level
+	con_level = 0.65
 
-# set up the global value for printing message
-command_out = 'adb shell input tap {} {}'
-# dictionary key
-key = 'realtime gaze on nexus'
+	# resolution of nexus
+	y_pixel = 1200
+	x_pixel = 1920
 
-while True:
-	msg = socket.recv()
+	# minimal radius is 10 pixels
+	radius = 5
 
-	items = msg.split("\n")
-	msg_type = items.pop(0)
-	items = dict([i.split(':', 1) for i in items[: -1] ])
-	# check the message type, if the message is from gaze
-	if msg_type == 'Gaze':
-		try:
-			# extract confidence and timestamp
-			confidence = float(items['confidence'])
-			temp_timestamp = float(items['timestamp'])
-			if (confidence > con_level and key in items):
-				gp = items[key]
-				# Check the confidence level then check two gp with timestamp.
-				gp_x, gp_y = map(float, gp[1:-1].split(','))
-				if (0 <= gp_x <= 1 and 0 <= gp_y <= 1):
-					# denormalized the x and y position with pixel
-					# values in the reference surface
-					temp_x = gp_x * x_pixel
-					temp_y = (1 - gp_y) * y_pixel
-					print 'x: {}, y: {}, timestamp: {}'.format(x, y, timestamp)
-					print 'temp_x: {}, temp_y: {}, temp_timestamp: {}'.format(temp_x, temp_y, temp_timestamp)
-					if x == -1.0 or y == -1.0:
-						# case: get new x and y
-						x = temp_x
-						y = temp_y
-						timestamp = temp_timestamp
-					else:
-						# computation on checking the difference and timestamp
-						x_diff = abs(x - temp_x)
-						y_diff = abs(y - temp_y)
-						distance = math.sqrt((x_diff ** 2) + (y_diff ** 2))
-						if distance < radius:
-							# case: new gaze location is within range of
-							# standard point of gaze_location
-							if (temp_timestamp - timestamp) > duration:
-								# need to change to write to bash file
-								print command_out.format(x, y)
-								x = -1.0
-								y = -1.0
-								timestamp = -1.0
-						else:
-							# case: new gaze locataion is outside range
-							# replace the standard point to new gaze_location
+	# time check is two seconds
+	duration = 1.5
+
+	# Setup three global variables, x, y and timestamp.
+	# So we can compare different between
+	# those messages
+	x = -1.0
+	y = -1.0
+	timestamp = -1
+
+	# set up the global value for printing message
+	cmd_out = 'input tap {} {}'
+	# dictionary key
+	key = 'realtime gaze on nexus'
+
+	# set up network connection with pupil eye tracker
+	port = '5000'
+	context = zmq.Context()
+	socket = context.socket(zmq.SUB)
+	socket.connect('tcp://127.0.0.1:' + port)
+	# filter by message by stating string "STRING". '' receives all messages
+	socket.setsockopt(zmq.SUBSCRIBE, '')
+
+
+	# build up an adb object
+	adb = ADB()
+	# set ADB path
+	adb.set_adb_path('~/Library/Android/sdk/platform-tools/adb')
+
+	# verify ADB path
+	print "[+] Verifying ADB path ..."
+	if adb.check_path() is False:
+		print "Error"
+		exit(-1)
+	print "OK"
+
+	# restart server ???
+	print "[+] Restarting ADB server"
+	adb.restart_server()
+	if adb.lastFailed():
+		print "\t- Error\n"
+		exit(-2)
+
+	# get detected devices
+	dev = 0
+	while dev is 0:
+		print "[+] Detecting devices..."
+		error, devices = adb.get_devices()
+
+		if error is 1:
+			# no devices connected
+			adb.wait_for_device()
+			continue
+		elif error is 2:
+			print "Not enough permissions !"
+			exit(-3)
+
+		print "OK"
+		dev = 1
+
+	# this should never reached
+	if len(devices) == 0:
+		print "[+] No devices detected !"
+		exit(-4)
+
+	# show detected devices
+	i = 0
+	for dev in devices:
+		print "\t%d: %s" % (i, dev)
+		i += 1
+
+	if i > 1:
+
+	else:
+		dev = 0
+
+	# set target device
+	try:
+		adb.set_target_device(devices[dev])
+	except Exception, e:
+		print "\n[!] Error:\t- ADB: %s\t - Python: %s" % (adb.get_error(),e.args)
+        exit(-5)
+
+    print "[+] Using \"%s\" as target device " % devices[dev]
+
+	while True:
+		msg = socket.recv()
+
+		items = msg.split("\n")
+		msg_type = items.pop(0)
+		items = dict([i.split(':', 1) for i in items[: -1] ])
+		# check the message type, if the message is from gaze
+		if msg_type == 'Gaze':
+			try:
+				# extract confidence and timestamp
+				confidence = float(items['confidence'])
+				temp_timestamp = float(items['timestamp'])
+				if (confidence > con_level and key in items):
+					gp = items[key]
+					# Check the confidence level then check two gp with timestamp.
+					gp_x, gp_y = map(float, gp[1:-1].split(','))
+					if (0 <= gp_x <= 1 and 0 <= gp_y <= 1):
+						# denormalized the x and y position with pixel
+						# values in the reference surface
+						temp_x = gp_x * x_pixel
+						temp_y = (1 - gp_y) * y_pixel
+
+						# debugging aid
+						print 'x: {}, y: {}, timestamp: {}'.format(x, y, timestamp)
+						print 'temp_x: {}, temp_y: {}, temp_timestamp: {}'.format(temp_x, temp_y, temp_timestamp)
+						# debugging aid
+
+						if x == -1.0 or y == -1.0:
+							# case: get new x and y
 							x = temp_x
 							y = temp_y
 							timestamp = temp_timestamp
-					# if x == -1.0 or y == -1.0:
-					# 	# case: get new x and y
-					# 	x = temp_x
-					# 	y = temp_y
-					# 	timestamp = temp_timestamp
-					# else:
-					# 	# computation on checking the difference and timestamp
-					# 	x_diff = abs(x - temp_x)
-					# 	y_diff = abs(y - temp_y)
-					# 	distance = math.sqrt((x_diff**2) + (y_diff**2))
-					# 	if (distance < radius and abs(timestamp - temp_timestamp) > duration):
-					# 		# need to change to write to bash file, using
-					# 		# os.write, os.open, os.close
-					# 		print command_out.format(x, y)
-					# 	# replace the old x, y and timestamp with new value
-					# 	x = temp_x
-					# 	y = temp_y
-					# 	timestamp = temp_timestamp
-			else:
-				# case: confidence less than lowest confident level
-				pass
-		except KeyError:
-			print error_message
-			break
-	else:
-		# pass on other messages not related to gaze position
-		pass
+						else:
+							# computation on checking the difference and timestamp
+							x_diff = abs(x - temp_x)
+							y_diff = abs(y - temp_y)
+							distance = math.sqrt((x_diff ** 2) + (y_diff ** 2))
+							if distance < radius:
+								# case: new gaze location is within range of
+								# standard point of gaze_location
+								if (temp_timestamp - timestamp) > duration:
+									# need to change to write to bash file
+									print command_out.format(x, y)
+									x = -1.0
+									y = -1.0
+									timestamp = -1.0
+							else:
+								# case: new gaze locataion is outside range
+								# replace the standard point to new gaze_location
+								x = temp_x
+								y = temp_y
+								timestamp = temp_timestamp
+						# if x == -1.0 or y == -1.0:
+						# 	# case: get new x and y
+						# 	x = temp_x
+						# 	y = temp_y
+						# 	timestamp = temp_timestamp
+						# else:
+						# 	# computation on checking the difference and timestamp
+						# 	x_diff = abs(x - temp_x)
+						# 	y_diff = abs(y - temp_y)
+						# 	distance = math.sqrt((x_diff**2) + (y_diff**2))
+						# 	if (distance < radius and abs(timestamp - temp_timestamp) > duration):
+						# 		# need to change to write to bash file, using
+						# 		# os.write, os.open, os.close
+						# 		print command_out.format(x, y)
+						# 	# replace the old x, y and timestamp with new value
+						# 	x = temp_x
+						# 	y = temp_y
+						# 	timestamp = temp_timestamp
+				else:
+					# case: confidence less than lowest confident level
+					pass
+			except KeyError:
+				print error_message
+				break
+		else:
+			# pass on other messages not related to gaze position
+			pass
+
+if __name__ == "__main__":
+	main()

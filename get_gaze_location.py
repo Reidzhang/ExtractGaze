@@ -114,6 +114,14 @@ def main():
 
     print "[+] Using \"%s\" as target device " % devices[dev]
 
+    # connect device with client by TCP/IP
+    # set listening port
+    port = input("Get the tcp port number: ")
+    adb.listen_tcp(port)
+    # set the ip address for listening
+    ip_addr = input("Enter device ip address: ")
+    adb.connect_remote(ip_addr, port)
+
 	while True:
 		msg = socket.recv()
 
@@ -156,7 +164,10 @@ def main():
 								# standard point of gaze_location
 								if (temp_timestamp - timestamp) > duration:
 									# need to change to write to bash file
-									print command_out.format(x, y)
+									result =  cmd_out.format(x, y)
+									# debugging aid
+									print result
+									adb.shell_command(result)
 									x = -1.0
 									y = -1.0
 									timestamp = -1.0
@@ -166,24 +177,6 @@ def main():
 								x = temp_x
 								y = temp_y
 								timestamp = temp_timestamp
-						# if x == -1.0 or y == -1.0:
-						# 	# case: get new x and y
-						# 	x = temp_x
-						# 	y = temp_y
-						# 	timestamp = temp_timestamp
-						# else:
-						# 	# computation on checking the difference and timestamp
-						# 	x_diff = abs(x - temp_x)
-						# 	y_diff = abs(y - temp_y)
-						# 	distance = math.sqrt((x_diff**2) + (y_diff**2))
-						# 	if (distance < radius and abs(timestamp - temp_timestamp) > duration):
-						# 		# need to change to write to bash file, using
-						# 		# os.write, os.open, os.close
-						# 		print command_out.format(x, y)
-						# 	# replace the old x, y and timestamp with new value
-						# 	x = temp_x
-						# 	y = temp_y
-						# 	timestamp = temp_timestamp
 				else:
 					# case: confidence less than lowest confident level
 					pass

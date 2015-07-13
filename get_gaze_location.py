@@ -122,6 +122,11 @@ def main():
     ip_addr = input("Enter device ip address: ")
     adb.connect_remote(ip_addr, port)
 
+    # debuging aid
+    adb.shell_command('input keyevent 3')
+    # debugging aid
+    exit(0)
+
 	while True:
 		msg = socket.recv()
 

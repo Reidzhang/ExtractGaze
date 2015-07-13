@@ -26,11 +26,11 @@ def main():
 	y_pixel = 1200
 	x_pixel = 1920
 
-	# minimal radius is 10 pixels
-	radius = 5
+	# minimal radius is 100 pixels
+	radius = 100
 
 	# time check is two seconds
-	duration = 1.5
+	duration = 0.15
 
 	# Setup three global variables, x, y and timestamp.
 	# So we can compare different between
@@ -124,10 +124,8 @@ def main():
 	print "[+] Using \"%s\" as target device " % (devices[dev])
 
 	rain = input("Please disconnect usb : ")
-
-	# check with user
-	if rain in "No" or "N" or "Nope":
-		exit(0)
+ 	if rain in "No" or "N" or "Nope":
+ 		exit(0)
 
 	# accepting connection from pupil head set
 	while True:
@@ -156,7 +154,6 @@ def main():
 						print 'x: {}, y: {}, timestamp: {}'.format(x, y, timestamp)
 						print 'temp_x: {}, temp_y: {}, temp_timestamp: {}'.format(temp_x, temp_y, temp_timestamp)
 						# debugging aid
-
 						if x == -1.0 or y == -1.0:
 							# case: get new x and y
 							x = temp_x

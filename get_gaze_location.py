@@ -101,7 +101,7 @@ def main():
 		i += 1
 
 	if i > 1:
-
+		print 'more than 1 devices'
 	else:
 		dev = 0
 
@@ -110,23 +110,26 @@ def main():
 		adb.set_target_device(devices[dev])
 	except Exception, e:
 		print "\n[!] Error:\t- ADB: %s\t - Python: %s" % (adb.get_error(),e.args)
-        exit(-5)
+		exit(-5)
 
-    print "[+] Using \"%s\" as target device " % devices[dev]
+	print "[+] Using \"%s\" as target device " % (devices[dev])
+	# connect device with client by TCP/IP
+	# set listening port
+	port = input("Get the tcp port number: ")
+	adb.listen_tcp(port)
+	# set the ip address for listening
+	ip_addr = input("Enter device ip address: ")
+	adb.connect_remote(ip_addr, port)
 
-    # connect device with client by TCP/IP
-    # set listening port
-    port = input("Get the tcp port number: ")
-    adb.listen_tcp(port)
-    # set the ip address for listening
-    ip_addr = input("Enter device ip address: ")
-    adb.connect_remote(ip_addr, port)
+	print "[+] Using \"%s\" as target device " % (devices[dev])
 
-    # debuging aid
-    adb.shell_command('input keyevent 3')
-    # debugging aid
-    exit(0)
+	rain = input("Please disconnect usb : ")
 
+	# check with user
+	if rain in "No" or "N" or "Nope":
+		exit(0)
+
+	# accepting connection from pupil head set
 	while True:
 		msg = socket.recv()
 

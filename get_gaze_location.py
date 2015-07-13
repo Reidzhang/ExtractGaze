@@ -26,8 +26,9 @@ def main():
 	y_pixel = 1200
 	x_pixel = 1920
 
-	# minimal radius is 100 pixels
-	radius = 100
+	# minimal radius for the range of the
+	# gaze location
+	radius = math.sqrt(105 ** 2 + 105 ** 2)
 
 	# time check is two seconds
 	duration = 0.15

@@ -9,8 +9,15 @@ debugging
 '''
 import zmq
 import math
+import signal
 from pyadb import ADB
 from sys import stdin, exit
+
+adb = ADB()
+
+def signal_handler(signal, frame):
+	adb.kill_server()
+	exit(0)
 
 def main():
 
@@ -31,7 +38,7 @@ def main():
 	radius = math.sqrt(105 ** 2 + 105 ** 2)
 
 	# time check is two seconds
-	duration = 0.15
+	duration = 1.0
 
 	# Setup three global variables, x, y and timestamp.
 	# So we can compare different between
@@ -54,8 +61,8 @@ def main():
 	socket.setsockopt(zmq.SUBSCRIBE, '')
 
 
-	# build up an adb object
-	adb = ADB()
+	# # build up an adb object
+	# adb = ADB()
 	# set ADB path
 	adb.set_adb_path('~/Library/Android/sdk/platform-tools/adb')
 
@@ -71,6 +78,7 @@ def main():
 	adb.restart_server()
 	if adb.lastFailed():
 		print "\t- Error\n"
+		adb.kill_server()
 		exit(-2)
 
 	# get detected devices
@@ -85,6 +93,7 @@ def main():
 			continue
 		elif error is 2:
 			print "Not enough permissions !"
+			adb.kill_server()
 			exit(-3)
 
 		print "OK"
@@ -103,6 +112,7 @@ def main():
 
 	if i > 1:
 		print 'more than 1 devices'
+		exit(0)
 	else:
 		dev = 0
 
@@ -111,22 +121,31 @@ def main():
 		adb.set_target_device(devices[dev])
 	except Exception, e:
 		print "\n[!] Error:\t- ADB: %s\t - Python: %s" % (adb.get_error(),e.args)
+		adb.kill_server()
 		exit(-5)
 
 	print "[+] Using \"%s\" as target device " % (devices[dev])
 	# connect device with client by TCP/IP
 	# set listening port
-	port = input("Get the tcp port number: ")
-	adb.listen_tcp(port)
+	adbPort = input("Enter an port number except for 5000: ")
+	if adbPort == 5000:
+		adb.kill_server()
+		print "Port error"
+		exit(-1)
+	# listen to the port
+	adb.listen_tcp(adbPort)
 	# set the ip address for listening
 	ip_addr = input("Enter device ip address: ")
-	adb.connect_remote(ip_addr, port)
+	adb.connect_remote(ip_addr, adbPort)
 
 	print "[+] Using \"%s\" as target device " % (devices[dev])
 
 	rain = input("Please disconnect usb : ")
- 	if rain in "No" or "N" or "Nope":
+ 	if rain in ("No" or "N" or "Nope"):
+ 		adb.kill_server()
  		exit(0)
+
+ 	print "Check"
 
 	# accepting connection from pupil head set
 	while True:
@@ -195,3 +214,4 @@ def main():
 
 if __name__ == "__main__":
 	main()
+	signal.signal(signal.SIGINT, signal_handler)

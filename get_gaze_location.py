@@ -4,8 +4,15 @@ test script to see what the stream looks like and for
 debugging
 """
 '''
-	Copy right Zhitao Zhang
-	Add new feature with 
+	Copy right: Zhitao Zhang(zzt124@uw.edu)
+	Receive data from Pupol Server broadcast using TCP/IP
+	connection and establish an connection with Android devices
+	sending shell_command for clicking.
+
+	This is an inital design. Will need some improvement later.
+
+	For using adb establishing connection, you need to install
+	pyadb first.
 '''
 import zmq
 import math

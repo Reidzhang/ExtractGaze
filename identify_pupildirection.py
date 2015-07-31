@@ -39,8 +39,7 @@ def det_angle(confidence, norm_pos, con_level):
 		norm_x, norm_y = map(float, norm_pos[1:-1].split(','))
 		diff_x = norm_x - org_x
 		diff_y = norm_y - org_y
-		if abs(diff_x) <= inner_radius 
-			and abs(diff_y) <= inner_radius:
+		if abs(diff_x) <= inner_radius and abs(diff_y) <= inner_radius:
 			return None
 		else:
 			# calculate hypotenuse
@@ -102,7 +101,7 @@ def main():
 				if heading == None:
 					sphero.roll(speed, 0, 0, False);
 				else:
-					sphero.roll(speed, heading, 1, False);
+					sphero.roll(speed, int(round(heading)), 1, False);
 			except KeyError:
 				pass
 		else:

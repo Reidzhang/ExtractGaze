@@ -7,8 +7,11 @@
 import zmq
 import math
 import signal
-
+import sphero_driver
+import time
 from sys import stdin, exit
+
+sphero = sphero_driver.Sphero();
 
 low_bar = 0.35
 hig_bar = 0.65
@@ -102,6 +105,17 @@ def main():
 			pass
 
 if __name__ == "__main__":
+	# set up sphero connection
+	sphero.connect();
+	# abstract from mannually set up sphero
+	sphero.set_raw_data_strm(40, 1, 0, False)
+	# time slepp
+	time.sleep(1);
+	# set up LED light for reminder
+	sphero.set_rgb_led(255,0,0,0,False)
+	time.sleep(1)
+	sphero.set_rgb_led(0,255,0,0,False)
+	time.sleep(1)
+	sphero.set_rgb_led(0,0,255,0,False)
 	main()
 	signal.signal(signal.SIGINT, signal_handler)
-

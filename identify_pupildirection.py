@@ -21,9 +21,9 @@ org_y = 0.5
 inner_radius = 0.15
 out_radius = math.sqrt(0.5**2 + 0.5**2)
 
-
 def signal_handler(signal, frame):
 	print 'Exiting the program right now'
+	sphero.disconnect();
 	exit(0)
 
 def det_angle(confidence, norm_pos, con_level):
@@ -41,7 +41,7 @@ def det_angle(confidence, norm_pos, con_level):
 		diff_y = norm_y - org_y
 		if abs(diff_x) <= inner_radius 
 			and abs(diff_y) <= inner_radius:
-			pass
+			return None
 		else:
 			# calculate hypotenuse
 			hypotenuse = math.sqrt(diff_x ** 2 + diff_y ** 2)
@@ -59,9 +59,10 @@ def det_angle(confidence, norm_pos, con_level):
 				# fourth quadrant
 				angle = 360 + math.degrees(math.asin(diff_y / hypotenuse))
 			print angle
+			return angle
 	else:
 		# confidence is too small to make a decision
-		pass
+		return None;
 
 
 def main():
@@ -77,10 +78,11 @@ def main():
 	ip_addr = raw_input("Enter the ip address for PUpil Server: ")
 	# whole ip address
 	socket.connect('%s:%s' % (ip_addr, port))
-
-
 	# filter message by stating string "String", '' receives all messages
 	socket.setsockopt(zmq.SUBSCRIBE, '')
+
+	# set up speed
+	speed = 100
 
 	# accepting connection from pupil head set
 	while True:
@@ -96,8 +98,11 @@ def main():
 				confidence = float(items['confidence'])
 				# norm_pos is a attribute in the dictionary as string
 				norm_pos = items['norm_pos']
-
-				det_angle(confidence, norm_pos, con_level)
+				heading = det_angle(confidence, norm_pos, con_level)
+				if heading == None:
+					sphero.roll(speed, 0, 0, False);
+				else:
+					sphero.roll(speed, heading, 1, False);
 			except KeyError:
 				pass
 		else:

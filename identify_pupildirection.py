@@ -1,3 +1,4 @@
+#!/usr/bin/python
 '''
 	Copy right: Zhitao Zhang (zzt124@uw.edu)
 	This script receive data from pupil server
@@ -18,7 +19,7 @@ hig_bar = 0.65
 
 org_x = 0.5
 org_y = 0.5
-inner_radius = 0.15
+inner_radius = 0.10
 out_radius = math.sqrt(0.5**2 + 0.5**2)
 
 def signal_handler(signal, frame):
@@ -31,7 +32,7 @@ def det_angle(confidence, norm_pos, con_level):
 		Determite which angle the user
 		is looking at
 	'''
-	# For x, y if the position is within [0.4, 0.7],
+	# For x, y if the position is within [0.4, 0.6],
 	# eye would't be considered as looking at specific
 	# angle
 	if confidence > con_level:
@@ -39,11 +40,11 @@ def det_angle(confidence, norm_pos, con_level):
 		norm_x, norm_y = map(float, norm_pos[1:-1].split(','))
 		diff_x = norm_x - org_x
 		diff_y = norm_y - org_y
-		if abs(diff_x) <= inner_radius and abs(diff_y) <= inner_radius:
+		# calculate hypotenuse
+		hypotenuse = math.sqrt(diff_x ** 2 + diff_y ** 2)
+		if hypotenuse < inner_radius:
 			return None
 		else:
-			# calculate hypotenuse
-			hypotenuse = math.sqrt(diff_x ** 2 + diff_y ** 2)
 			angle = 0.0
 			if (diff_x >= 0 and diff_y >= 0):
 				# first quadrant
@@ -51,13 +52,12 @@ def det_angle(confidence, norm_pos, con_level):
 			elif (diff_x < 0 and diff_y >= 0):
 				# second quadrant
 				angle = 180 - math.degrees(math.asin(diff_y / hypotenuse))
-			elif (diff_x < 0  and diff_y < 0):
+			elif (diff_x <= 0  and diff_y < 0):
 				# third quadrant
 				angle = 180 - math.degrees(math.asin(diff_y / hypotenuse))
 			else:
 				# fourth quadrant
 				angle = 360 + math.degrees(math.asin(diff_y / hypotenuse))
-			print angle
 			return angle
 	else:
 		# confidence is too small to make a decision

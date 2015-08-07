@@ -46,18 +46,18 @@ def det_angle(confidence, norm_pos, con_level):
 			return None
 		else:
 			angle = 0.0
-			if (diff_x >= 0 and diff_y >= 0):
+			if (diff_x > 0 and diff_y >= 0):
 				# first quadrant
-				angle = math.degrees(math.asin(diff_y / hypotenuse))
-			elif (diff_x < 0 and diff_y >= 0):
+				angle = 270 + math.degrees(math.asin(diff_y / hypotenuse))
+			elif (diff_x <= 0 and diff_y >= 0):
 				# second quadrant
-				angle = 180 - math.degrees(math.asin(diff_y / hypotenuse))
-			elif (diff_x <= 0  and diff_y < 0):
+				angle = 90 - math.degrees(math.asin(diff_y / hypotenuse))
+			elif (diff_x < 0  and diff_y <= 0):
 				# third quadrant
-				angle = 180 - math.degrees(math.asin(diff_y / hypotenuse))
+				angle = 90 - math.degrees(math.asin(diff_y / hypotenuse))
 			else:
 				# fourth quadrant
-				angle = 360 + math.degrees(math.asin(diff_y / hypotenuse))
+				angle = 180 - math.degrees(math.asin(diff_y / hypotenuse))
 			return angle
 	else:
 		# confidence is too small to make a decision
@@ -91,7 +91,9 @@ def main():
 		msg_type = items.pop(0)
 		items = dict([ i.split(':', 1) for i in items[: -1] ])
 		# check the message type, if the message is from 
-		if msg_type == 'Pupil':
+		# Test change if using Gaze instead of just pupil norm_pos
+		# calibration is required
+		if msg_type == 'Gaze':
 			try:
 				# extract confidence level of pupil position
 				confidence = float(items['confidence'])

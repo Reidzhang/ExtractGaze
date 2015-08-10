@@ -24,6 +24,7 @@ out_radius = math.sqrt(0.5**2 + 0.5**2)
 
 def signal_handler(signal, frame):
 	print 'Exiting the program right now'
+	sphero.set_back_led(0, False)
 	sphero.disconnect();
 	exit(0)
 
@@ -74,7 +75,7 @@ def main():
 	context = zmq.Context()
 	socket = context.socket(zmq.SUB)
 	# interpret ip address as string
-	ip_addr = raw_input("Enter the ip address for PUpil Server: ")
+	ip_addr = raw_input("Enter the ip address for Pupil Server: ")
 	# whole ip address
 	socket.connect('%s:%s' % (ip_addr, port))
 	# filter message by stating string "String", '' receives all messages
@@ -123,5 +124,8 @@ if __name__ == "__main__":
 	sphero.set_rgb_led(0,255,0,0,False)
 	time.sleep(1)
 	sphero.set_rgb_led(0,0,255,0,False)
+	time.sleep(1)
+	sphero.set_rgb_led(0,0,0,0,False)
+	sphero.set_back_led(255, False)
 	main()
 	signal.signal(signal.SIGINT, signal_handler)

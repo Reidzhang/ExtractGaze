@@ -1,4 +1,3 @@
-#!/usr/bin/python
 '''
 	Copy right: Zhitao Zhang (zzt124@uw.edu)
 	This script receive data from pupil server
@@ -14,9 +13,6 @@ from sys import stdin, exit
 
 sphero = sphero_driver.Sphero();
 
-low_bar = 0.35
-hig_bar = 0.65
-
 org_x = 0.5
 org_y = 0.5
 inner_radius = 0.10
@@ -31,7 +27,9 @@ def signal_handler(signal, frame):
 def det_angle(confidence, norm_pos, con_level):
 	'''
 		Determite which angle the user
-		is looking at
+		is looking at. By the definition of sphero.
+        0 degree is going forward. So in y direction
+        it is considered as 0 degree.
 	'''
 	# For x, y if the position is within [0.4, 0.6],
 	# eye would't be considered as looking at specific
@@ -64,6 +62,46 @@ def det_angle(confidence, norm_pos, con_level):
 		# confidence is too small to make a decision
 		return None;
 
+def make_calibration(socket, con_level):
+	'''
+		Calibrate Sphero at the beginning of
+		the process. Make the heading related to
+		the user
+	'''
+	calibrated = False
+	msg_count = 0
+	sphero.set_back_led(255, False)
+	while calibrated != True:
+		msg = socket.recv()
+		items = msg.split("\n")
+		msg_type = items.pop(0)
+		items = dict([ i.split(':', 1) for i in items[: -1] ])
+		# check the message type, if the message is from
+		# Gaze infomation
+		if msg_type == 'Gaze':
+			try:
+				# extract confidence level of pupil position
+				confidence = float(items['confidence'])
+				norm_pos = items['norm_pos']
+				pupil_angle = det_angle(confidence, norm_pos, con_level)
+				if pupil_angle > 135 and pupil_angle < 225:
+					msg_count += 1;
+				else:
+					msg_count = 0
+			except KeyError:
+				pass
+		# check the msg_count
+		if msg_count == 0:
+			sphero.roll(0, 6, 1, False)
+			time.sleep(0.2)
+			sphero.set_heading(0, False)
+		elif msg_count >= 31:
+			calibrated = True
+		else:
+			pass
+	sphero.set_back_led(0, False)
+	sphero.set_rgb_led(0, 0, 255, 0, False)
+
 
 def main():
 
@@ -81,6 +119,8 @@ def main():
 	# filter message by stating string "String", '' receives all messages
 	socket.setsockopt(zmq.SUBSCRIBE, '')
 
+	# Beging calibration process
+	make_calibration(socket, con_level)
 	# set up speed
 	speed = 100
 
@@ -92,9 +132,8 @@ def main():
 		msg_type = items.pop(0)
 		items = dict([ i.split(':', 1) for i in items[: -1] ])
 		# check the message type, if the message is from 
-		# Test change if using Gaze instead of just pupil norm_pos
-		# calibration is required
-		if msg_type == 'Gaze':
+		# Gaze type
+		if msg_type == 'Pupil':
 			try:
 				# extract confidence level of pupil position
 				confidence = float(items['confidence'])
@@ -112,6 +151,7 @@ def main():
 			pass
 
 if __name__ == "__main__":
+	# general set-up of sphero
 	# set up sphero connection
 	sphero.connect();
 	# abstract from mannually set up sphero
@@ -126,6 +166,6 @@ if __name__ == "__main__":
 	sphero.set_rgb_led(0,0,255,0,False)
 	time.sleep(1)
 	sphero.set_rgb_led(0,0,0,0,False)
-	sphero.set_back_led(255, False)
+	sphero.set_stablization(1, False)
 	main()
 	signal.signal(signal.SIGINT, signal_handler)

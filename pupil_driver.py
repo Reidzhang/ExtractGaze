@@ -29,7 +29,8 @@ def det_angle(confidence, norm_pos, con_level):
 		Determite which angle the user
 		is looking at. By the definition of sphero.
         0 degree is going forward. So in y direction
-        it is considered as 0 degree.
+        it is considered as 0 degree. The minimum is 0
+        degree. The maximum is 359 degree.
 	'''
 	# For x, y if the position is within [0.4, 0.6],
 	# eye would't be considered as looking at specific

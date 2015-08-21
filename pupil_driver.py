@@ -1,7 +1,7 @@
 '''
 	Copy right: Zhitao Zhang (zzt124@uw.edu)
-	This script receive data from pupil server
-	and determite which direction the pupil is looking at.
+	This script is a driver module using pupil
+	headset for sphero
 '''
 
 import zmq
@@ -38,6 +38,8 @@ def det_angle(confidence, norm_pos, con_level):
 	if confidence > con_level:
 		# case: confidence is large enough for consideration
 		norm_x, norm_y = map(float, norm_pos[1:-1].split(','))
+		# flip the x axis
+		norm_x = 1 - norm_x
 		diff_x = norm_x - org_x
 		diff_y = norm_y - org_y
 		# calculate hypotenuse
@@ -78,8 +80,8 @@ def make_calibration(socket, con_level):
 		msg_type = items.pop(0)
 		items = dict([ i.split(':', 1) for i in items[: -1] ])
 		# check the message type, if the message is from
-		# Gaze infomation
-		if msg_type == 'Gaze':
+		# pupil infomation
+		if msg_type == 'Pupil':
 			try:
 				# extract confidence level of pupil position
 				confidence = float(items['confidence'])
@@ -102,6 +104,75 @@ def make_calibration(socket, con_level):
 			pass
 	sphero.set_back_led(0, False)
 	sphero.set_rgb_led(0, 0, 255, 0, False)
+
+def collect_data(socket, con_level):
+	# Helper function for collecting data of pupil
+	# positions in different regions
+	ret = []
+	count = 0
+	while count < 40:
+		msg = socket.recv()
+		items = msg.split('\n')
+		msg_type = items.pop(0)
+		items = dict([ i.split(':', 1) for i in items[: -1] ])
+		# check the message type
+		if msg_type == 'Pupil':
+			try:
+				# check confident level of pupil position
+				confidence = float(items['confidence'])
+				norm_pos = items['norm_pos']
+				if confidence > con_level:
+					norm_x, norm_y = map(float, norm_pos[1:-1].split(','))
+					norm_x = 1 - norm_x
+					data_pt = norm_x, norm_y
+					ret.append(data_pt)
+					count += 1
+			except KeyError:
+				pass
+	return ret
+
+
+def space_calibration(socket, con_level):
+	'''
+	Let the user to look at top left, top right, bottom left, and bottom right
+	four extreme points. Through these four points to decide the observation
+	region
+	'''
+	inter_socket = socket
+	print "Please look at the top left region."
+	time.sleep(0.5)
+	top_left = collect_data(inter_socket, con_level)
+	print "Please look at the top right region."
+	time.spleep(0.5)
+	top_right = collect_data(inter_socket, con_level)
+	print "Please look at the bottom right region."
+	time.sleep(0.5)
+	bottom_right = collect_data(inter_socket, con_level)
+	print "Please look at the bottom left region."
+	time.sleep(0.5)
+	bottom_left = collect_data(inter_socket, con_level)
+	print 'Please focus on middle region.'
+	time.sleep(0.5)
+	
+	top_left = np.array(top_left)
+	top_right = np.array(top_right)
+	bottom_left = np.array(bottom_left)
+	bottom_right = np.array(bottom_right)
+	top_l_x = np.mean(top_left[:,0])
+	top_l_y = np.mean(top_left[:,1])
+	top_r_x = np.mean(top_right[:,0])
+	top_r_y = np.mean(top_right[:,1])
+	bottom_l_x = np.mean(bottom_left[:,0])
+	bottom_l_y = np.mean(bottom_left[:,1])
+	bottom_r_x = np.mean(bottom_right[:,0])
+	bottom_r_y = np.mean(bottom_right[:,1])
+	# expand the range of x
+	left_x = min(top_l_x, bottom_l_x)
+	right_x = max(top_r_x, bottom_r_x)
+	top_y = max(top_l_y, top_r_y)
+	bottom_y = min(bottom_l_y, bottom_r_y)
+	middle_x = (left_x + right_x) / 2
+	middle_y = (top_y + bottom_y) / 2
 
 
 def main():

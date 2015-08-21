@@ -217,10 +217,14 @@ if __name__ == '__main__':
     # plot projection of eye and world vs observed data
     X,Y,ZX,ZY = cal_pt_cloud.transpose().copy()
     X,Y = map_fn((X,Y))
-    X *= 1280/2.
-    Y *= 720/2.
-    ZX *= 1280/2.
-    ZY *= 720/2.
+    # X *= 1280/2.
+    # Y *= 720/2.
+    # ZX *= 1280/2.
+    # ZY *= 720/2.
+    X *= 1280.
+    Y *= 720.
+    ZX *= 1280.
+    ZY *= 720.
     fig_projection = plt.figure()
     plt.scatter(X,Y)
     plt.scatter(ZX,ZY,c='y')

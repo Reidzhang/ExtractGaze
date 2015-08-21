@@ -8,7 +8,11 @@ import numpy as np
 '''
 # load cal_pt_cloud
 cal_pt_cloud = np.load("/Users/zzt124/Desktop/003/cal_pt_cloud.npy")
+
 # reminder : the format of the cal_pt_cloud
+# plt.plot(cal_pt_cloud[:,0], cal_pt_cloud[:,1], 'ro')
+# plt.show()
+
 # is 'norm_pupil_x', 'norm_pupil_y', 'target_x' and 'target_y'
 storage = {'1': None,
 			'2': None,
@@ -52,6 +56,13 @@ for val in cal_pt_cloud:
 	end_index += 1
 # storage the very last point
 storage['10'] = cal_pt_cloud[start_index:, 0:2]
+
+plt.hist(storage['1'][:,0], label = 'X-value')
+plt.title("Marker 1 Histogram")
+plt.xlabel("x val")
+plt.ylabel("Frequency")
+plt.legend()
+plt.show()
 
 # Next step: calculate min, max, avg, standard diviation of X,Y
 for key, val in storage.items():

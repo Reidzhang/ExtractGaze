@@ -183,7 +183,7 @@ if __name__ == '__main__':
     from matplotlib import cm
     from mpl_toolkits.mplot3d import Axes3D
 
-    cal_pt_cloud = np.load('/Users/zzt124/Desktop/003/cal_pt_cloud.npy')
+    cal_pt_cloud = np.load('/Users/zzt124/Pupil_Lab/pupil/recordings/2015_08_21/004/cal_pt_cloud.npy')
     # plot input data
     # Z = cal_pt_cloud
     # ax.scatter(Z[:,0],Z[:,1],Z[:,2], c= "r")
@@ -193,14 +193,14 @@ if __name__ == '__main__':
     model_n = 9
     cx,cy,err_x,err_y = fit_poly_surface(cal_pt_cloud,model_n)
     map_fn = make_map_function(cx,cy,model_n)
-    err_dist,err_mean,err_rms = fit_error_screen(err_x,err_y,(1280,720))
+    err_dist,err_mean,err_rms = fit_error_screen(err_x,err_y,(1920, 1080))
     print err_rms,"in pixel"
-    threshold =15 # err_rms*2
+    threshold = err_rms * 2 # err_rms*2
 
     # fit again disregarding crass outlines
     cx,cy,new_err_x,new_err_y = fit_poly_surface(cal_pt_cloud[err_dist<=threshold],model_n)
     map_fn = make_map_function(cx,cy,model_n)
-    new_err_dist,new_err_mean,new_err_rms = fit_error_screen(new_err_x,new_err_y,(1280,720))
+    new_err_dist,new_err_mean,new_err_rms = fit_error_screen(new_err_x,new_err_y,(1920, 1080))
     print new_err_rms,"in pixel"
 
     print "using %i datapoints out of the full dataset %i: subset is %i percent" \
@@ -221,10 +221,10 @@ if __name__ == '__main__':
     # Y *= 720/2.
     # ZX *= 1280/2.
     # ZY *= 720/2.
-    X *= 1280.
-    Y *= 720.
-    ZX *= 1280.
-    ZY *= 720.
+    X *= 1920.
+    Y *= 1080.
+    ZX *= 1920.
+    ZY *= 1080.
     fig_projection = plt.figure()
     plt.scatter(X,Y)
     plt.scatter(ZX,ZY,c='y')

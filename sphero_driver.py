@@ -1,3 +1,4 @@
+
 #!/usr/bin/python
 #***********************************************************
 #* Software License Agreement (BSD License)
@@ -901,8 +902,6 @@ class Sphero(threading.Thread):
     #print self.mask_list
     #print output
     return output
-
-
 
   def disconnect(self):
     self.is_connected = False

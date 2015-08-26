@@ -104,7 +104,7 @@ if __name__ == '__main__':
 	points in each cluster. There are total 10
 	markers for calibraiton.
 	'''
-	cal_pt_cloud = np.load('/Users/zzt124/Pupil_Lab/pupil/recordings/2015_08_21/004/cal_pt_cloud.npy')
+	cal_pt_cloud = np.load('/Users/zzt124/Pupil_Lab/pupil/recordings/2015_08_24/002/cal_pt_cloud.npy')
 	# reminder : the format of the cal_pt_cloud
 	# is 'norm_pupil_x', 'norm_pupil_y', 'target_x' and 'target_y'
 	storage = {1: None,
@@ -117,20 +117,7 @@ if __name__ == '__main__':
 			8: None,
 			9: None,
 			10: None}
-	# norm_pupil_x = cal_pt_cloud[:,0]
-	# norm_pupil_y = cal_pt_cloud[:,1]
 
-
-	# model_n = 9
-	# cx,cy,err_x,err_y = fit_poly_surface(cal_pt_cloud,model_n)
-	# map_fn = make_map_function(cx,cy,model_n)
-	# X,Y,ZX,ZY = cal_pt_cloud.transpose().copy()
-	# X,Y = map_fn((X,Y))
-	# cal_pt_cloud_mapped = np.dstack((X,Y))
-	# cal_pt_cloud_mapped = np.dstack((cal_pt_cloud_mapped, ZX))
-	# cal_pt_cloud_mapped = np.dstack((cal_pt_cloud_mapped, ZY))
-	# cal_pt_cloud_mapped = cal_pt_cloud_mapped[0]
-	# group those pupil center into ten different clusters
 	end_index = 0
 	start_index = 0
 	count = 1;

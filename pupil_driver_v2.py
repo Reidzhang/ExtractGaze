@@ -37,8 +37,8 @@ def det_angle(start_point, end_point):
 			return 180 - tmp_angle
 	else:
 		# tmp_angle less than 0
-		if y_diff >= 0:
-			return 359 - tmp_angle
+		if y_diff > 0:
+			return 359 + tmp_angle
 		else:
 			return 180 - tmp_angle
 
@@ -84,7 +84,7 @@ def receive_pupil_data(socket, con_level):
 					# norm_pos is a attribute in the dictionary as string
 					norm_pos = items['norm_pos']
 					norm_x, norm_y = map(float, norm_pos[1:-1].split(','))
-					if start_point = None:
+					if start_point == None:
 						start_point = norm_x,norm_y
 						start_point_ts = timestamp 
 					else:

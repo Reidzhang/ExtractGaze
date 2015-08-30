@@ -9,6 +9,7 @@
 '''
 
 import os, sys, platform
+import getpass
 import cv2
 from pyglui import ui
 import numpy as np
@@ -18,6 +19,9 @@ from time import strftime,localtime,time,gmtime
 from shutil import copy2
 from glob import glob
 from audio import Audio_Capture,Audio_Input_Dict
+from file_methods import save_object
+from av_writer import JPEG_Writer
+from cv2_writer import CV_Writer
 # koosha
 import zbar
 #import webbrowser 
@@ -27,6 +31,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+import subprocess as sp
 
 def get_auto_name():
     return strftime("%Y_%m_%d", localtime())
@@ -81,7 +86,7 @@ def sanitize_timestamps(ts):
 
 class Recorder(Plugin):
     """Capture Recorder"""
-    def __init__(self,g_pool,session_name = get_auto_name(),rec_dir=None, user_info={'name':'','additional_field':'change_me'},info_menu_conf={},show_info_menu=False, record_eye = False, audio_src = 'No Audio', menu_conf = {}):
+    def __init__(self,g_pool,session_name = get_auto_name(),rec_dir=None, user_info={'name':'','additional_field':'change_me'},info_menu_conf={},show_info_menu=False, record_eye = False, audio_src = 'No Audio', raw_jpeg=False):
         super(Recorder, self).__init__(g_pool)
         
         self.states = ['start', 'want', 'pick']
@@ -98,15 +103,33 @@ class Recorder(Plugin):
         if session_name.startswith('20') and len(session_name)==10:
             session_name = get_auto_name()
 
-        if rec_dir:
-            self.set_rec_dir(rec_dir)
-        else:
-            #lets make a rec dir next to the user dir
-            base_dir = self.g_pool.user_dir.rsplit(os.path.sep,1)[0]
-            self.rec_dir = os.path.join(base_dir,'recordings')
-            if not os.path.isdir(self.rec_dir):
-                os.mkdir(self.rec_dir)
+        base_dir = self.g_pool.user_dir.rsplit(os.path.sep,1)[0]
+        default_rec_dir = os.path.join(base_dir, 'recordings')
 
+        if rec_dir and rec_dir != default_rec_dir and self.verify_path(rec_dir):
+            self.rec_dir = rec_dir
+        else:
+            try:
+                os.makedirs(default_rec_dir)
+            except OSError as e:
+                if 'File exists' in '%s'%e:
+                    pass
+                else:
+                    logger.error("Could not create Rec dir")
+                    raise e
+            else:
+                logger.info('Created standard Rec dir at "%s"'%default_rec_dir)
+            self.rec_dir = default_rec_dir
+        # if rec_dir and rec_dir != default_rec_dir and self.verify_path(rec_dir):
+        #     self.rec_dir = rec_dir
+        # else:
+        #     #lets make a rec dir next to the user dir
+        #     base_dir = self.g_pool.user_dir.rsplit(os.path.sep,1)[0]
+        #     self.rec_dir = os.path.join(base_dir,'recordings')
+        #     if not os.path.isdir(self.rec_dir):
+        #         os.mkdir(self.rec_dir)
+
+        self.raw_jpeg = raw_jpeg
         self.order = .9
         self.record_eye = record_eye
         self.session_name = session_name
@@ -118,7 +141,6 @@ class Recorder(Plugin):
         self.running = False
         self.menu = None
         self.button = None
-        self.menu_conf = menu_conf
 
         self.user_info = user_info
         self.show_info_menu = show_info_menu
@@ -136,22 +158,24 @@ class Recorder(Plugin):
         d['info_menu_conf'] = self.info_menu_conf
         d['show_info_menu'] = self.show_info_menu
         d['rec_dir'] = self.rec_dir
-        if self.menu:
-            d['menu_conf'] = self.menu.configuration
-        else:
-            d['menu_conf'] = self.menu_conf
+        d['raw_jpeg'] = self.raw_jpeg
+        # if self.menu:
+        #     d['menu_conf'] = self.menu.configuration
+        # else:
+        #     d['menu_conf'] = self.menu_conf
         return d
 
 
     def init_gui(self):
         self.menu = ui.Growing_Menu('Recorder')
-        self.menu.configuration = self.menu_conf
+        # self.menu.configuration = self.menu_conf
         self.g_pool.sidebar.insert(3,self.menu)
         self.menu.append(ui.Info_Text('Pupil recordings are saved like this: "path_to_recordings/recording_session_name/nnn" where "nnn" is an increasing number to avoid overwrites. You can use "/" in your session name to create subdirectories.'))
         self.menu.append(ui.Info_Text('Recordings are saved to "~/pupil_recordings". You can change the path here but note that invalid input will be ignored.'))
         self.menu.append(ui.Text_Input('rec_dir',self,setter=self.set_rec_dir,label='Path to recordings'))
         self.menu.append(ui.Text_Input('session_name',self,setter=self.set_session_name,label='Recording session name'))
         self.menu.append(ui.Switch('show_info_menu',self,on_val=True,off_val=False,label='Request additional user info'))
+        self.menu.append(ui.Selector('raw_jpeg',self,selection = [True,False], labels=["bigger file, less CPU", "smaller file, more CPU"],label='compression'))
         self.menu.append(ui.Info_Text('Recording the raw eye video is optional. We use it for debugging.'))
         self.menu.append(ui.Switch('record_eye',self,on_val=True,off_val=False,label='Record eye'))
         self.menu.append(ui.Selector('audio_src',self, selection=self.audio_devices_dict.keys()))
@@ -163,7 +187,7 @@ class Recorder(Plugin):
 
     def deinit_gui(self):
         if self.menu:
-            self.menu_conf = self.menu.configuration
+            # self.menu_conf = self.menu.configuration
             self.g_pool.sidebar.remove(self.menu)
             self.menu = None
         if self.button:
@@ -183,6 +207,8 @@ class Recorder(Plugin):
 
     def start(self):
         self.timestamps = []
+        # add self.data
+        self.data = {'pupil_positions':[], 'gaze_positions': []}
         self.pupil_list = []
         self.gaze_list = []
         self.frame_count = 0
@@ -225,16 +251,31 @@ class Recorder(Plugin):
         else:
             self.audio_writer = None
 
-        self.video_path = os.path.join(self.rec_path, "world.mkv")
-        self.writer = cv2.VideoWriter(self.video_path, int(cv2.cv.CV_FOURCC(*'DIVX')), float(self.g_pool.capture.frame_rate), (1280,720))
+        if self.raw_jpeg  and "uvc_capture" in str(self.g_pool.capture.__class__):
+            self.video_path = os.path.join(self.rec_path, "world.mp4")
+            self.writer = JPEG_Writer(self.video_path,int(self.g_pool.capture.frame_rate))
+        # elif 1:
+        #     self.writer = av_writer.AV_Writer(self.video_path)
+        else:
+            self.video_path = os.path.join(self.rec_path, "world.mkv")
+            self.writer = CV_Writer(self.video_path, float(self.g_pool.capture.frame_rate), self.g_pool.capture.frame_size)
         # positions path to eye process
         if self.record_eye:
             for tx in self.g_pool.eye_tx:
-                tx.send(self.rec_path)
+                tx.send((self.rec_path,self.raw_jpeg))
 
         if self.show_info_menu:
             self.open_info_menu()
+        # self.video_path = os.path.join(self.rec_path, "world.mkv")
+        # self.writer = cv2.VideoWriter(self.video_path, int(cv2.cv.CV_FOURCC(*'DIVX')), float(self.g_pool.capture.frame_rate), (1280,720))
+        # # positions path to eye process
+        # if self.record_eye:
+        #     for tx in self.g_pool.eye_tx:
+        #         tx.send(self.rec_path)
 
+        # if self.show_info_menu:
+        #     self.open_info_menu()
+###############
     def open_info_menu(self):
         self.info_menu = ui.Growing_Menu('additional Recording Info',size=(300,300),pos=(300,300))
         self.info_menu.configuration = self.info_menu_conf
@@ -261,6 +302,9 @@ class Recorder(Plugin):
 
     def update(self,frame,events):
         if self.running:
+            # update data
+            self.data['pupil_positions'] += events['pupil_positions']
+            self.data['gaze_positions'] += events['gaze_positions']
 
             #cv2.putText(frame.img, "Frame %s"%self.frame_count,(200,200), cv2.FONT_HERSHEY_SIMPLEX,1,(255,100,100)
             cv2.putText(frame.img, self.this_state,(200,100), cv2.FONT_HERSHEY_SIMPLEX,1,(255,100,100))
@@ -288,7 +332,7 @@ class Recorder(Plugin):
 
             self.stateT(frame, QRs, avg_x, avg_y, avg_col) 
 
-            self.writer.write(frame.img)
+            self.writer.write_video_frame(frame)
             self.frame_count += 1
 
             self.button.status_text = self.get_rec_time_str()
@@ -305,6 +349,8 @@ class Recorder(Plugin):
                 except:
                     logger.warning("Could not stop eye-recording. Please report this bug!")
 
+        save_object(self.data, os.path.join(self.rec_path, "pupil_data"))
+        
         gaze_list_path = os.path.join(self.rec_path, "gaze_positions.npy")
         np.save(gaze_list_path,np.asarray(self.gaze_list))
 
@@ -386,22 +432,42 @@ class Recorder(Plugin):
             self.stop()
         self.deinit_gui()
 
-
-
-    def set_rec_dir(self,val):
+    def verify_path(self, val):
         try:
             n_path = os.path.expanduser(val)
             logger.debug("Expanded user path.")
         except:
             n_path = val
         if not n_path:
-            logger.warning("Please specify a path.")
+            logger.waring("Please specify a path.")
+            return False
         elif not os.path.isdir(n_path):
             logger.warning("This is not a valid path.")
-        # elif not os.access(n_path, os.W_OK):
+            return False
         elif not writable_dir(n_path):
-            logger.warning("Do not have write access to '%s'."%n_path)
+            logger.warning("Do not have write access to '%s'." %n_path)
+            return False
         else:
+            return n_path
+
+
+    def set_rec_dir(self,val):
+        # try:
+        #     n_path = os.path.expanduser(val)
+        #     logger.debug("Expanded user path.")
+        # except:
+        #     n_path = val
+        # if not n_path:
+        #     logger.warning("Please specify a path.")
+        # elif not os.path.isdir(n_path):
+        #     logger.warning("This is not a valid path.")
+        # # elif not os.access(n_path, os.W_OK):
+        # elif not writable_dir(n_path):
+        #     logger.warning("Do not have write access to '%s'."%n_path)
+        # else:
+        #     self.rec_dir = n_path
+        n_path = self.verify_path(val)
+        if n_path:
             self.rec_dir = n_path
 
     def set_session_name(self, val):
@@ -612,5 +678,6 @@ def read_QR(imgray):
     for symbol in imageZbar:
         return symbol.data
     return 'None'
+
 
 

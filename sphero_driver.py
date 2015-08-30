@@ -187,14 +187,35 @@ class BTInterface(object):
       # nearby_devices = bluetooth.discover_devices(lookup_names = True)
       nearby_devices = lightblue.finddevices(getnames = True)
 
+      devs = {}
+      count = 0
       if len(nearby_devices)>0:
-        # for bdaddr, name in nearby_devices:
+        # # for bdaddr, name in nearby_devices:
+        # for bdaddr, name, d_val in nearby_devices:
+        #   #look for a device name that starts with Sphero
+        #   if name.startswith(self.target_name):
+        #     self.found_device = True
+        #     self.target_address = bdaddr
+        #     break
         for bdaddr, name, d_val in nearby_devices:
-          #look for a device name that starts with Sphero
+          # look for a devic name that starts with Sphero
           if name.startswith(self.target_name):
-            self.found_device = True
-            self.target_address = bdaddr
-            break
+            devs[name] = [bdaddr, name, d_val]
+            print "devices name = {}".format(name)
+            count += 1
+
+        if count == 1:
+          self.found_device = True
+          self.target_address = bdaddr
+          break
+        elif count >= 1:
+          selected_dev = raw_input("Please enter name: ")
+          self.found_device = True
+          self.target_address = devs[selected_dev][0]
+          break
+        else:
+          pass
+
       if self.found_device:
         break
 
@@ -709,6 +730,19 @@ class Sphero(threading.Thread):
     :param response: request response back from Sphero.
     """
     self.send(self.pack_cmd(REQ['CMD_BOOST'], [time, (heading>>8), (heading & 0xff)]), response)
+
+  def set_motion_to(self, time, response):
+    """
+    This sets the ultimate timeout for the last motion command to
+    keep Sphero from rolling away in the case of a crashed (or paused)
+    client app. The TIME parameter is expressed in milliseconds and defaults
+    to 2000 upon wake-up. If the control system is enabled, the timeout triggers
+    a stop otherwise it commands zero PWM to both motors. This "termination behavior"
+    is inhibited if a macro is running with the flag MFEXCLUSIVEDRV set, or
+    an orbBasic program is executing with a similar flag, BFEXCLUSIVEDRV.
+    Note that you must enable this action by setting System Option Flag #4.
+    """
+    self.send(self.pack_cmd(REQ['CMD_SET_MOTION_TO'], [self.clamp(time, 0, 2000)]), response)
 
   def set_raw_motor_values(self, l_mode, l_power, r_mode, r_power, response):
     """

@@ -86,12 +86,14 @@ def make_calibration(socket, con_level, data_range):
 		# check the message type, if the message is from
 		# pupil infomation
 		if msg_type == 'Pupil':
+			print msg_count
 			try:
 				# extract confidence level of pupil position
 				confidence = float(items['confidence'])
 				norm_pos = items['norm_pos']
 				pupil_angle = det_angle(confidence, norm_pos, con_level, data_range)
-				if pupil_angle > 135 and pupil_angle < 225:
+				print " pupil_angle = {}, confidence = {} ".format(pupil_angle, confidence)
+				if pupil_angle == None:
 					msg_count += 1;
 				else:
 					msg_count = 0
@@ -100,9 +102,9 @@ def make_calibration(socket, con_level, data_range):
 		# check the msg_count
 		if msg_count == 0:
 			sphero.roll(0, 6, 1, False)
-			time.sleep(0.2)
+			time.sleep(0.3)
 			sphero.set_heading(0, False)
-		elif msg_count >= 31:
+		elif msg_count >= 30:
 			calibrated = True
 		else:
 			pass
@@ -114,7 +116,7 @@ def collect_data(socket, con_level):
 	# positions in different regions
 	ret = []
 	count = 0
-	while count < 350:
+	while count < 200:
 		msg = socket.recv()
 		items = msg.split('\n')
 		msg_type = items.pop(0)
@@ -185,6 +187,7 @@ def main():
 
 	# find the middle point and get the range
 	middle_x, middle_y, inner_radius = space_calibration(socket, con_level)
+	print middle_x, middle_y, inner_radius
 	data_range = [middle_x, middle_y, inner_radius]
 	# Beging calibration process
 	make_calibration(socket, con_level, data_range)
@@ -234,5 +237,5 @@ if __name__ == "__main__":
 	time.sleep(1)
 	sphero.set_rgb_led(0,0,0,0,False)
 	sphero.set_stablization(1, False)
-	main()
 	signal.signal(signal.SIGINT, signal_handler)
+	main()

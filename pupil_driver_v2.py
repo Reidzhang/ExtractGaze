@@ -11,6 +11,8 @@ import math
 import sphero_driver
 import numpy as np
 import signal
+import time
+import matplotlib.pyplot as plt
 from sys import stdin, exit
 
 sphero = sphero_driver.Sphero()
@@ -56,10 +58,14 @@ def process_data(*args):
 		x_diff *= 1920
 		y_diff *= 1080
 		travel_pixel = math.sqrt(math.pow(x_diff, 2) + math.pow(y_diff, 2))
-		resolution = (travel_pixel * 2.) / (7.366 * 3.14)
-		wait_time = resolution / 3.9
-		sphero.roll(100, angle, 1, False)
-		time.sleep(wait_time)
+		# set 1 pixel in screen is equal to 2 cm in real world
+		travel_distance = travel_pixel * 2.
+		# with speed = 50, sphero travel distance is around 66 cm
+		count = math.ceil(travel_distance / 66)
+		i = 0
+		while i <= count and travel_pixel > 6:
+			sphero.roll(50, int(angle), 1, False)
+			i += 1
 		return end_point, end_point_ts
 
 def receive_pupil_data(socket, con_level):
@@ -73,7 +79,7 @@ def receive_pupil_data(socket, con_level):
 		msg = socket.recv()
 		items = msg.split('\n')
 		msg_type = items.pop(0)
-		items = dict([ i.split(':', 1) for i in itmes[: -1] ])
+		items = dict([ i.split(':', 1) for i in items[: -1] ])
 		# check of Gaze type message
 		if msg_type == 'Gaze':
 			try:
@@ -100,7 +106,6 @@ def receive_pupil_data(socket, con_level):
 			pass
 
 
-
 def main():
 
 	# lowest acceptant level
@@ -116,6 +121,7 @@ def main():
 	socket.connect('%s:%s' % (ip_addr, port))
 	# filter message by stating string "String", '' receives all messages
 	socket.setsockopt(zmq.SUBSCRIBE, '')
+	sphero.set_back_led(255, False)
 	receive_pupil_data(socket, con_level)
 
 
@@ -136,6 +142,6 @@ if __name__ == "__main__":
 	time.sleep(1)
 	sphero.set_rgb_led(0,0,0,0,False)
 	sphero.set_stablization(1, False)
-	main()
 	signal.signal(signal.SIGINT, signal_handler)
+	main()
 

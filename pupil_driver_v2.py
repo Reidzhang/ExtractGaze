@@ -105,11 +105,45 @@ def receive_pupil_data(socket, con_level):
 			# pass on other messages not related to pupil position
 			pass
 
+def make_calibration(socket):
+	'''
+		Calibrate Sphero at the beginning of
+		the process. Make the heading related to
+		the user
+	'''
+	calibrated = False
+	msg_count = 0
+	sphero.set_back_led(255, False)
+	while calibrated != True:
+		msg = socket.recv()
+		items = msg.split("\n")
+		msg_type = items.pop(0)
+		items = dict([ i.split(':', 1) for i in items[: -1] ])
+		# check the message type, if the message is from
+		# pupil infomation
+		print items
+		if msg_type == 'Pupil':
+			try:
+				norm_pos = items['norm_pos']
+				norm_x, norm_y = map(float, norm_pos[1:-1].split(','))
+				if norm_x == 0 and norm_y == 0:
+					msg_count += 1;
+				else:
+					msg_count = 0
+			except KeyError:
+				pass
+		# check the msg_count
+		if msg_count == 0:
+			sphero.roll(0, 6, 1, False)
+			time.sleep(0.3)
+			sphero.set_heading(0, False)
+		elif msg_count >= 30:
+			calibrated = True
+		else:
+			pass
+
 
 def main():
-
-	# lowest acceptant level
-	con_level = 0.65
 
 	# network setup connection with pupil eye tracker
 	port = raw_input('Please enter port number: ')
@@ -121,8 +155,9 @@ def main():
 	socket.connect('%s:%s' % (ip_addr, port))
 	# filter message by stating string "String", '' receives all messages
 	socket.setsockopt(zmq.SUBSCRIBE, '')
-	sphero.set_back_led(255, False)
-	receive_pupil_data(socket, con_level)
+	make_calibration(socket)
+	# set lowest acceptence level to be 65% 
+	receive_pupil_data(socket, con_level = 0.65)
 
 
 if __name__ == "__main__":
